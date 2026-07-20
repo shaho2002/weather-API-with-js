@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova | Weather Glass</title>
+  <!-- Font Awesome (free icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    /* ----- reset & base ----- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      padding: 1.5rem;
+      /* weather-related background: dramatic sky with clouds */
+      background-image: url('https://images.unsplash.com/photo-1534088568595-a066f410bcda?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      position: relative;
+    }
+
+    /* soft blur overlay – more dreamy */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      backdrop-filter: blur(12px) saturate(1.6);
+      -webkit-backdrop-filter: blur(12px) saturate(1.6);
+      background: rgba(8, 18, 30, 0.5);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ----- main glass card (enhanced) ----- */
+    .weather-card {
+      position: relative;
+      z-index: 2;
+      max-width: 680px;
+      width: 100%;
+      background: rgba(18, 30, 45, 0.2);
+      backdrop-filter: blur(24px) saturate(1.8);
+      -webkit-backdrop-filter: blur(24px) saturate(1.8);
+      border-radius: 64px;
+      padding: 2.8rem 2.4rem 3rem;
+      box-shadow: 0 40px 70px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: transform 0.3s ease, box-shadow 0.4s;
+      animation: floatGlass 8s ease-in-out infinite;
+    }
+
+    @keyframes floatGlass {
+      0% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-8px) scale(1.002); }
+      100% { transform: translateY(0px) scale(1); }
+    }
+
+    /* subtle inner glow (no rotation) */
+    .weather-card::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 66px;
+      background: radial-gradient(circle at 30% 20%, rgba(255, 215, 0, 0.03), transparent 70%);
+      z-index: -1;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* ----- search bar with active input (for JS) ----- */
+    .search-area {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      margin-bottom: 2.6rem;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 0.3rem 0.3rem 0.3rem 1.4rem;
+      border-radius: 80px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+      transition: 0.3s;
+    }
+
+    .search-area:hover {
+      border-color: rgba(255, 215, 0, 0.1);
+    }
+
+    .search-area i {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 1.1rem;
+    }
+
+    #cityInput {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 0.8rem 0.2rem;
+      color: #f2faff;
+      font-size: 1rem;
+      font-weight: 400;
+      letter-spacing: 0.4px;
+      outline: none;
+      caret-color: #ffd966;
+    }
+
+    #cityInput::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+      font-weight: 300;
+      letter-spacing: 0.6px;
+    }
+
+    #cityInput:focus {
+      border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+    }
+
+    .search-btn {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 180, 50, 0.02));
+      border: 1px solid rgba(255, 215, 0, 0.06);
+      border-radius: 60px;
+      padding: 0.7rem 1.8rem;
+      color: #f5e9c0;
+      font-size: 0.95rem;
+      font-weight: 400;
+      backdrop-filter: blur(8px);
+      transition: 0.25s ease;
+      cursor: default;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    .search-btn i {
+      font-size: 0.9rem;
+      color: #ffd966;
+    }
+
+    .search-btn:hover {
+      background: rgba(255, 215, 0, 0.1);
+      border-color: rgba(255, 215, 0, 0.15);
+      transform: scale(1.02);
+    }
+
+    /* ----- main weather display (data placeholder) ----- */
+    .weather-display {
+      margin: 0.6rem 0 1.8rem;
+      text-align: center;
+    }
+
+    .weather-data {
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 64px;
+      padding: 2rem 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      box-shadow: inset 0 0 40px rgba(0, 20, 40, 0.3);
+      transition: all 0.3s;
+      position: relative;
+    }
+
+    /* subtle glow ring (static) */
+    .weather-data::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 66px;
+      background: radial-gradient(circle at 70% 30%, rgba(255, 215, 0, 0.02), transparent 60%);
+      z-index: -1;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    /* weather icon with floating pulse */
+    .weather-icon {
+      font-size: 5.2rem;
+      color: #ffe69b;
+      filter: drop-shadow(0 10px 30px rgba(255, 215, 0, 0.15));
+      margin-bottom: 0.2rem;
+      transition: 0.3s;
+    }
+
+    .weather-icon i {
+      animation: softPulse 5s ease-in-out infinite;
+    }
+
+    @keyframes softPulse {
+      0% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.06) rotate(2deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    .temperature {
+      font-size: 4.6rem;
+      font-weight: 300;
+      letter-spacing: 2px;
+      color: #ffffff;
+      text-shadow: 0 4px 40px rgba(0, 0, 0, 0.4);
+      line-height: 1.2;
+    }
+
+    .temperature sup {
+      font-size: 2rem;
+      font-weight: 300;
+      top: -0.8rem;
+      color: #bfdcff;
+    }
+
+    .weather-condition {
+      font-size: 1.3rem;
+      font-weight: 300;
+      color: #dcebff;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 0.5rem 2.2rem;
+      border-radius: 80px;
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      margin-top: 0.6rem;
+      letter-spacing: 0.8px;
+    }
+
+    .city-name {
+      font-size: 1.5rem;
+      font-weight: 400;
+      color: #d4e5f5;
+      margin-top: 1rem;
+      letter-spacing: 1px;
+      opacity: 0.85;
+      background: rgba(0, 0, 0, 0.08);
+      padding: 0.2rem 1.8rem;
+      border-radius: 80px;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .city-name i {
+      font-size: 0.8rem;
+      margin-left: 8px;
+      color: #ffd966;
+    }
+
+    /* ----- extra details (glassmorphism enhanced) ----- */
+    .extra-details {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 2.6rem;
+      padding: 0.6rem 0.2rem;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: #d3e5fa;
+      font-weight: 300;
+      font-size: 0.95rem;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 0.7rem 1.6rem;
+      border-radius: 80px;
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      transition: 0.25s ease;
+      flex: 1 0 auto;
+      justify-content: center;
+      min-width: 120px;
+    }
+
+    .detail-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+      border-color: rgba(255, 215, 0, 0.05);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .detail-item i {
+      font-size: 1.4rem;
+      color: #ffd966;
+      width: 2.2rem;
+      text-align: center;
+      filter: drop-shadow(0 2px 12px rgba(255, 215, 0, 0.1));
+    }
+
+    .detail-item span {
+      display: inline-block;
+      min-width: 44px;
+      font-weight: 300;
+      letter-spacing: 0.3px;
+    }
+
+    .detail-value {
+      font-weight: 400;
+      color: #f2faff;
+      letter-spacing: 0.5px;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 0.1rem 1rem;
+      border-radius: 60px;
+      font-size: 0.95rem;
+      border: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    /* footer with subtle style */
+    .footer-note {
+      margin-top: 2.6rem;
+      text-align: center;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.12);
+      letter-spacing: 1.8px;
+      font-weight: 300;
+      backdrop-filter: blur(2px);
+      padding: 0.6rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.01);
+    }
+
+    /* ----- responsive (mobile) ----- */
+    @media (max-width: 520px) {
+      .weather-card {
+        padding: 1.8rem 1.2rem 2.2rem;
+        border-radius: 48px;
+      }
+
+      .search-area {
+        padding: 0.2rem 0.2rem 0.2rem 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .search-btn {
+        padding: 0.5rem 1.2rem;
+        font-size: 0.85rem;
+      }
+
+      .temperature {
+        font-size: 3.4rem;
+      }
+      .temperature sup {
+        font-size: 1.5rem;
+        top: -0.6rem;
+      }
+
+      .extra-details {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.7rem;
+      }
+
+      .detail-item {
+        width: 100%;
+        justify-content: center;
+        padding: 0.6rem 1rem;
+      }
+
+      .weather-icon {
+        font-size: 4rem;
+      }
+    }
+
+    /* helper classes for JS */
+    .hidden { display: none; }
+    .fade-in {
+      animation: fadeIn 0.6s ease;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(14px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    /* demo placeholder style */
+    .empty-state .weather-icon { color: #8aaec9; filter: none; }
+    .empty-state .temperature { color: #b8d0e0; }
+    .empty-state .weather-condition { color: #8db1cc; }
+  </style>
+</head>
+<body>
+
+  <div class="weather-card">
+
+    <!-- ===== search bar with input ===== -->
+    <div class="search-area">
+      <i class="fas fa-map-pin"></i>
+      <input type="text" id="cityInput" placeholder="Enter city name ..." value="Tehran">
+      <button class="search-btn" id="searchButton">
+        <i class="fas fa-arrow-right"></i> Search
+      </button>
+    </div>
+
+    <!-- ===== weather display (JS will populate) ===== -->
+    <div class="weather-display">
+      <div class="weather-data" id="weatherData">
+        <!-- static preview (you can fully replace with JS) -->
+        <div class="weather-icon">
+          <i class="fas fa-cloud-sun-rain"></i>
+        </div>
+        <div class="temperature">
+          24<sup>°</sup>
+        </div>
+        <div class="weather-condition">
+          Light Rain
+        </div>
+        <div class="city-name">
+          <i class="fas fa-location-dot"></i> New York
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== extra details (humidity, wind, pressure) ===== -->
+    <div class="extra-details">
+      <div class="detail-item">
+        <i class="fas fa-droplet"></i>
+        <span>Humidity</span>
+        <span class="detail-value" id="humidityValue">62%</span>
+      </div>
+      <div class="detail-item">
+        <i class="fas fa-wind"></i>
+        <span>Wind</span>
+        <span class="detail-value" id="windValue">18 km/h</span>
+      </div>
+      <div class="detail-item">
+        <i class="fas fa-compress-alt"></i>
+        <span>Pressure</span>
+        <span class="detail-value" id="pressureValue">1016 mb</span>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <i class="fas fa-cloud-moon" style="margin-left: 6px;"></i>  data from API
+    </div>
+  </div>
+
+  <script src="script.js" ></script>
+
+</body>
+</html>
